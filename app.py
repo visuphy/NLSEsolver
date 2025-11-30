@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from solver import run_simulation, DEFAULT_PARAMS, PROD_MAX_N, PROD_MAX_STEPS, PROD_MAX_HEATMAP
 import math
@@ -77,9 +77,21 @@ def get_form_params(form):
     return params
 
 
+# --- ROUTE 1: The Intro Page (Root URL) ---
 @app.route("/", methods=["GET"])
-@app.route("/tool", methods=["GET"]) # Added alias for consistency
-def index():
+def intro():
+    """
+    Serves the introduction page (intro.html) at /NLSEsolver/
+    """
+    return render_template("intro.html")
+
+
+# --- ROUTE 2: The Tool/Calculator (Mapped to /tool) ---
+@app.route("/tool", methods=["GET"])
+def tool():
+    """
+    Serves the actual calculator interface (index.html) at /NLSEsolver/tool
+    """
     # Detect Environment
     is_development = os.environ.get('APP_ENV') == 'development'
 
@@ -100,6 +112,7 @@ def index():
     )
 
 
+# --- ROUTE 3: The Calculation Endpoint ---
 @app.route("/simulate", methods=["POST"])
 def simulate():
     try:
