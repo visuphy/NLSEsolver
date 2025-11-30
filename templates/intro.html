@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> NLSE Solver - Introduction</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+
+    <link rel="stylesheet" href="/NLSEsolver/static/intro_style.css">
+
+    <link rel="stylesheet" href="/header.css">
+    <link rel="stylesheet" href="/footer.css">
+
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
+</head>
+<body>
+
+    <div id="header-placeholder"></div>
+
+    <main class="intro-container">
+
+        <h1>Welcome to the NLSE Solver</h1>
+
+        <div class="simulator-preview">
+            <img src="/NLSEsolver/static/Screenshot.png" alt="Screenshot of the Multi-Pulse Interference Analyzer">
+            <a href="/NLSEsolver/tool" class="play-link" title="Launch Simulator">
+                <div class="play-button">
+                    <i class="fas fa-rocket"></i>
+                </div>
+            </a>
+        </div>
+
+        <section class="info-section">
+            <p>
+                <span class="author-info">
+                    Original Author: <a href="https://github.com/Hussein-Tofaili" target="_blank">Hussein-Tofaili</a>
+                </span>
+                <span class="info-separator">|</span>
+                <span class="source-info">
+                    Source Code: <a href="https://github.com/visuphy/NLSEsolver" target="_blank">
+                        <i class="fab fa-github"></i> GitHub Repository
+                    </a>
+                </span>
+            </p>
+        </section>
+
+        <div class="description" style="margin-top: 20px;">
+             <h2 style="text-align:left; border-bottom: 1px solid #eee; padding-bottom: 5px;">About the Simulator</h2>
+            <p>
+                This tool simulates the propagation of ultrashort optical pulses in nonlinear fibers by numerically solving the generalized Nonlinear Schrödinger Equation (GNLSE) using the Split-Step Fourier Method (SSFM). It accounts for higher-order chromatic dispersion ($\beta_2, \beta_3, \beta_4$), Kerr nonlinearity ($\gamma$), fiber loss, Stimulated Raman Scattering (SRS), and self-steepening effects. Use it to analyze soliton dynamics, pulse compression, and spectral broadening in real-time.</p>
+        </div>
+
+        <div class="description">            
+            <p>Please note this python webapp runs on a paid server with limited computational resources. To prevent timeouts and ensure stability, strict hard limits are enforced on some simulation parameters (e.g., <strong>Grid N ≤ 2¹⁶</strong>, <strong>Steps ≤ 1000</strong>).</p>
+            <p>
+            To bypass these limits and run high-resolution, computation-heavy simulations, please 
+            <strong>download the source code</strong> and run the application locally on your own machine.
+        </p>
+            <p>Launch the calculator using the button above.</p>
+        </div>
+
+        <div class="comments-section">
+             <h2>Comments & Discussion</h2>
+            <script src="https://giscus.app/client.js"
+        data-repo="visuphy/NLSEsolver"
+        data-repo-id="R_kgDOQf-sqw"
+        data-category="Comments"
+        data-category-id="DIC_kwDOQf-sq84CzOVP"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="light_high_contrast"
+        data-lang="en"
+        data-loading="lazy"
+        crossorigin="anonymous"
+        async>
+</script>
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <!-- Script to include Header/Footer -->
+    <script src="/layout.js" defer></script>
+</body>
+</html>

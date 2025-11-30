@@ -1,0 +1,327 @@
+/* --- START OF FILE style.css --- */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f7fb;
+    margin: 0;
+    padding: 0;
+    color: #222;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+/* --- H1 Updated to match Intro Style --- */
+h1 {
+    color: #212529;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 600;
+    margin-top: 10px;
+    font-size: 2em;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 1.1fr) minmax(360px, 1.2fr);
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-top: 1.5rem;
+}
+
+.left-panel,
+.right-panel {
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+    .right-panel {
+        margin-top: 1rem;
+    }
+}
+
+h2 {
+    margin-top: 0;
+    font-weight: 500;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.5rem;
+}
+
+form {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    margin-top: 1rem;
+}
+
+.form-grid fieldset {
+    border: 1px solid #e0e4f0;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    padding: 1rem 1rem 0.75rem;
+}
+
+.form-grid legend {
+    padding: 0 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.form-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.form-grid input,
+.form-grid select {
+    margin-top: 0.25rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #c7d0e5;
+    font-size: 0.9rem;
+}
+
+.form-grid input:focus,
+.form-grid select:focus {
+    outline: none;
+    border-color: #4b6fff;
+    box-shadow: 0 0 0 2px rgba(75, 111, 255, 0.15);
+}
+
+.checkbox {
+    flex-direction: row;
+    align-items: center;
+}
+
+.checkbox input {
+    margin-right: 0.5rem;
+    margin-top: 0;
+    width: auto;
+}
+
+.hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 0.75rem;
+}
+
+.sub-hint {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.actions {
+    text-align: right;
+    margin-top: 1rem;
+}
+
+button {
+    background: #4b6fff;
+    border: none;
+    color: white;
+    padding: 0.6rem 1.4rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #3c58d8;
+}
+
+button:disabled {
+    background: #9aa8e0;
+    cursor: not-allowed;
+}
+
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.alert-error {
+    background: #ffe5e5;
+    border: 1px solid #ffb4b4;
+    color: #902020;
+}
+
+.info-box {
+    background: #edf3ff;
+    border: 1px solid #cad7ff;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+.right-panel > h2 {
+    margin-bottom: 0.75rem;
+}
+
+.no-results {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.plots {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+@media (min-width: 1100px) {
+    .plots {
+        grid-template-columns: 1fr;
+    }
+}
+
+.plot-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 0.75rem;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+}
+
+.plot-container {
+    position: relative;
+    display: block;
+    cursor: crosshair;
+}
+
+.plot-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
+
+.coord-tooltip {
+    position: absolute;
+    display: none;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-family: monospace;
+    pointer-events: none; 
+    z-index: 100;
+    white-space: nowrap;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.coord-tooltip strong {
+    color: #aaccff;
+    font-weight: 600;
+}
+
+/* Loading Indicator Styles */
+.loading-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e6efff;
+    border: 1px solid #c0d4ff;
+    color: #3b5bdb;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.spinner {
+    border: 3px solid rgba(59, 91, 219, 0.2);
+    border-left-color: #3b5bdb;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin-right: 12px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Info/Ribbon Styles (Ported from intro_style.css) --- */
+.info-section {
+    text-align: center;
+    margin: 10px 0 25px 0;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95em;
+    color: #495057;
+    line-height: 1.5;
+    background-color: #fff; /* Ensure bg match */
+    border-radius: 4px; /* Slight rounding if it stands alone */
+}
+
+.info-section p {
+    margin: 0;
+}
+
+/* Style the separator */
+.info-separator {
+    margin: 0 10px; 
+    color: #adb5bd; 
+}
+
+.info-section a {
+    color: #0056b3;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+}
+
+.info-section a:hover {
+    color: #003d80;
+    text-decoration: underline;
+}
+
+.info-section i {
+    margin-right: 4px;
+    color: #6c757d;
+    vertical-align: baseline;
+}
+
+.info-section a:hover i {
+    color: #003d80;
+}
+
+/* Allow wrapping on smaller screens */
+@media (max-width: 480px) {
+    .info-section {
+        line-height: 1.8;
+    }
+    .info-separator {
+        display: block;
+        margin: 5px auto;
+        width: 20px;
+        border-top: 1px solid #eee;
+        color: transparent;
+    }
+    .author-info, .source-info {
+        display: block;
+        margin-bottom: 3px;
+    }
+}
