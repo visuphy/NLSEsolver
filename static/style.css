@@ -83,6 +83,7 @@ body {
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
+   position: relative;
 }
 
 .ribbon-left {
@@ -725,4 +726,5 @@ button:disabled {
     margin: 0;
     text-align: center;
     border-radius: 4px;
+
 }
