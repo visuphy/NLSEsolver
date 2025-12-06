@@ -15,7 +15,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
 
-    <link rel="stylesheet" href="/NLSEsolver/static/style.css?v=1.01">
+    <link rel="stylesheet" href="/NLSEsolver/static/style.css?v=1.02">
     <link rel="stylesheet" href="/header.css">
     <link rel="stylesheet" href="/footer.css">
 
@@ -114,9 +114,12 @@
                         <label>
                             Spectral FWHM [nm]
                             <input type="text" name="fwhm_nm" value="{{ params.fwhm_nm }}">
-                            <div style="font-size: 0.85em; color: #555; margin-top: 4px;">
-                                TL Pulse Duration (FWHM): <span id="tl-duration-display"
-                                    style="font-weight: 600; color: #4b6fff;">--</span> fs
+                            <div
+                                style="font-size: 0.85em; color: #555; margin-top: 4px; display: flex; align-items: center;">
+                                TL Pulse Duration (FWHM):
+                                <input type="text" id="tl-duration-input"
+                                    style="width: 80px; padding: 2px 5px; font-size: 0.9em; margin: 0 5px; border: 1px solid #ccc; border-radius: 4px;">
+                                fs
                             </div>
                         </label>
 
@@ -314,7 +317,7 @@
             // Pulse Width Vars
             const fwhmInput = document.querySelector('input[name="fwhm_nm"]');
             const pulseShapeSelect = document.querySelector('select[name="pulse_shape"]');
-            const tlDurationDisplay = document.getElementById('tl-duration-display');
+            const tlDurationInput = document.getElementById('tl-duration-input');
 
             const ramanCheckbox = document.getElementById('raman-checkbox');
             const ramanInput = document.getElementById('raman-factor');
@@ -346,14 +349,12 @@
                 }
             }
 
-            function calculateTLPulse() {
+            function updateDurationFromSpectral() {
                 const fwhm_nm = parseFloat(fwhmInput.value);
                 const lambda_nm = parseFloat(lambdaInput.value);
                 const shape = pulseShapeSelect.value;
 
                 if (!isNaN(fwhm_nm) && !isNaN(lambda_nm) && fwhm_nm > 0 && lambda_nm > 0) {
-                    // c = 299792458
-                    // d_nu = (c / lambda^2) * d_lambda
                     const c = 299792458.0;
                     const lambda_m = lambda_nm * 1e-9;
                     const d_lambda_m = fwhm_nm * 1e-9;
@@ -365,12 +366,37 @@
                     if (d_nu > 1e-20) {
                         const fwhm_s = tbp / d_nu;
                         const fwhm_fs = fwhm_s * 1e15;
-                        tlDurationDisplay.textContent = fwhm_fs.toFixed(3);
+                        // Avoid overwriting if user is typing (approx check, but for this direction usually fine)
+                        // Actually, this function is called when FWHM changes, so we MUST overwrite Duration
+                        tlDurationInput.value = fwhm_fs.toFixed(3);
                     } else {
-                        tlDurationDisplay.textContent = "Inf";
+                        tlDurationInput.value = "";
                     }
                 } else {
-                    tlDurationDisplay.textContent = "--";
+                    tlDurationInput.value = "";
+                }
+            }
+
+            function updateSpectralFromDuration() {
+                const duration_fs = parseFloat(tlDurationInput.value);
+                const lambda_nm = parseFloat(lambdaInput.value);
+                const shape = pulseShapeSelect.value;
+
+                if (!isNaN(duration_fs) && !isNaN(lambda_nm) && duration_fs > 0 && lambda_nm > 0) {
+                    const c = 299792458.0;
+                    const lambda_m = lambda_nm * 1e-9;
+                    const fwhm_s = duration_fs * 1e-15;
+
+                    let tbp = 0.315; // sech2
+                    if (shape === 'gaussian') tbp = 0.441;
+
+                    // d_nu = TBP / dt
+                    const d_nu = tbp / fwhm_s;
+                    // d_lambda = (lambda^2 / c) * d_nu
+                    const d_lambda_m = (lambda_m * lambda_m / c) * d_nu;
+                    const d_lambda_nm = d_lambda_m * 1e9;
+
+                    fwhmInput.value = d_lambda_nm.toFixed(3);
                 }
             }
 
@@ -389,15 +415,18 @@
 
             mfdInput.addEventListener('input', calculateGamma);
             n2Input.addEventListener('input', calculateGamma);
+            mfdInput.addEventListener('input', calculateGamma);
+            n2Input.addEventListener('input', calculateGamma);
             lambdaInput.addEventListener('input', () => {
                 calculateGamma();
-                calculateTLPulse();
+                updateDurationFromSpectral();
             });
-            fwhmInput.addEventListener('input', calculateTLPulse);
-            pulseShapeSelect.addEventListener('change', calculateTLPulse);
+            fwhmInput.addEventListener('input', updateDurationFromSpectral);
+            tlDurationInput.addEventListener('input', updateSpectralFromDuration);
+            pulseShapeSelect.addEventListener('change', updateDurationFromSpectral);
 
             // Initial calc
-            calculateTLPulse();
+            updateDurationFromSpectral();
             updateNDisplay();
 
             const autoTimeCheck = document.getElementById('auto-time-check');
