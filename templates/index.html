@@ -1,438 +1,588 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>NLSE SSFM Solver</title>
     <link rel="icon" type="image/png" href="/favicon.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
 
-    <link rel="stylesheet" href="/NLSEsolver/static/style.css">
+    <link rel="stylesheet" href="/NLSEsolver/static/style.css?v=1.01">
     <link rel="stylesheet" href="/header.css">
     <link rel="stylesheet" href="/footer.css">
-</head>
+
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true }
+                ],
+                throwOnError: false
+            });
+        });
+    </script>
+
 <body>
     <div id="header-placeholder"></div>
-<div class="container">
-    <h1>NLSE Solver</h1>
+    <div class="container">
+        <header class="header-ribbon">
+            <div class="ribbon-left">
+                <h1>NLSE Solver</h1>
+                <span class="copyright">© 2025 <a href="https://github.com/visuphy" target="_blank">VisuPhy</a></span>
+            </div>
+            <div class="ribbon-right">
+                <a href="https://github.com/Hussein-Tofaili" target="_blank">Author: Hussein-Tofaili</a>
+                <span class="separator">•</span>
+                <a href="https://github.com/visuphy/NLSEsolver" target="_blank"><i class="fab fa-github"></i> Source
+                    Code</a>
+                <span class="separator">•</span>
+                <a href="/NLSEsolver/">About & Discussion</a>
+            </div>
+        </header>
+        <div class="layout">
+            <div class="left-panel">
+                <div id="error-box" class="alert alert-error" style="display: none;"></div>
+                <pre id="info-box" class="info-box" style="display: none;"></pre>
 
-    <section class="info-section">
-        <p>
-            <span class="author-info">
-                Original Author: <a href="https://github.com/Hussein-Tofaili" target="_blank">Hussein-Tofaili</a>
-            </span>
-            <span class="info-separator">|</span>
-            <span class="source-info">
-                Source Code: <a href="https://github.com/visuphy/NLSEsolver" target="_blank">
-                    <i class="fab fa-github"></i> GitHub Repository
-                </a>
-            </span>
-        </p>
-    </section>
-    <div class="layout">
-        <div class="left-panel">
-            <div id="error-box" class="alert alert-error" style="display: none;"></div>
-            <pre id="info-box" class="info-box" style="display: none;"></pre>
+                <form id="sim-form" class="form-grid">
+                    <h2>Simulation setup</h2>
 
-            <form id="sim-form" class="form-grid">
-                <h2>Simulation setup</h2>
-                
-                {% if is_development %}
-                <div style="background:#d4edda; color:#155724; padding:5px 10px; border-radius:4px; margin-bottom:10px; font-size:0.9em; border:1px solid #c3e6cb;">
-                    <strong>Dev Mode:</strong> Restrictions disabled.
-                </div>
-                {% endif %}
+                    {% if is_development %}
+                    <div
+                        style="background:#d4edda; color:#155724; padding:5px 10px; border-radius:4px; margin-bottom:10px; font-size:0.9em; border:1px solid #c3e6cb;">
+                        <strong>Dev Mode:</strong> Restrictions disabled.
+                    </div>
+                    {% endif %}
 
-                <fieldset>
-                    <legend>Grid</legend>
-                    <label>
-                        Exponent k for number of points N = 2^k
-                        <input type="number"
-                               name="N_exp"
-                               min="1"
-                               max="{{ max_n_exp }}"
-                               value="{{ params.N_exp }}">
-                    </label>
-                    <small class="hint">
-                        Current N = 2^{{ params.N_exp }} = {{ 2 ** params.N_exp }}
-                    </small>
+                    <fieldset>
+                        <legend>Grid</legend>
+                        <div class="n-input-group">
+                            <span class="n-label">Number of points N = 2</span>
+                            <div class="nsup-wrapper">
+                                <input type="number" name="N_exp" id="n-exp-input" min="1" max="{{ max_n_exp }}"
+                                    value="{{ params.N_exp }}">
+                            </div>
+                        </div>
+                        <small class="hint" id="n-value-display">
+                            Current N = 2^{{ params.N_exp }} = {{ 2 ** params.N_exp }}
+                        </small>
 
-                    <label>
-                        Time window [ps]
-                        <input type="text" name="time_window" value="{{ params.time_window }}">
-                    </label>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Central wavelength</legend>
-                    <label>
-                        λ₀ [nm]
-                        <input type="text" name="lambda_0" value="{{ params.lambda_0 }}">
-                    </label>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Input pulse</legend>
-                    <label>
-                        Pulse shape
-                        <select name="pulse_shape">
-                            <option value="sech2"
-                                {% if params.pulse_shape|lower == "sech2" %}selected{% endif %}>sech²
-                            </option>
-                            <option value="gaussian"
-                                {% if params.pulse_shape|lower == "gaussian" %}selected{% endif %}>Gaussian
-                            </option>
-                        </select>
-                    </label>
-
-                    <label>
-                        FWHM [fs]
-                        <input type="text" name="FWHM" value="{{ params.FWHM }}">
-                    </label>
-
-                    <label>
-                        Pulse energy E [J]
-                        <input type="text" name="E" value="{{ params.E }}">
-                    </label>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Fiber parameters</legend>
-                    <label>
-                        β₂ [ps²/m]
-                        <input type="text" name="beta2" value="{{ params.beta2 }}">
-                    </label>
-
-                    <label>
-                        β₃ [ps³/m]
-                        <input type="text" name="beta3" value="{{ params.beta3 }}">
-                    </label>
-
-                    <label>
-                        β₄ [ps⁴/m]
-                        <input type="text" name="beta4" value="{{ params.beta4 }}">
-                    </label>
-
-                    <label>
-                        α [dB/km]
-                        <input type="text" name="alpha_db_per_km" value="{{ params.alpha_db_per_km }}">
-                    </label>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Effects</legend>
-                    
-                    <label class="checkbox">
-                        <input type="checkbox" name="use_nonlinear" id="nonlinear-checkbox"
-                               {% if params.use_nonlinear %}checked{% endif %}>
-                        Include nonlinearities
-                    </label>
-
-                    <div id="nonlinear-group" style="margin-left: 1.2rem; border-left: 2px solid #eee; padding-left: 0.8rem;">
                         <label>
-                            γ [1/(W·m)]
-                            <input type="text" name="gamma" id="gamma-input" value="{{ params.gamma }}">
+                            Time window [ps]
+                            <input type="text" name="time_window" value="{{ params.time_window }}">
                         </label>
+                        <small class="hint" style="color: gray;">Try to increase time window value in case of
+                            error</small>
+                    </fieldset>
 
-                        <label class="checkbox">
-                            <input type="checkbox" name="use_raman" id="raman-checkbox"
-                                   {% if params.use_raman %}checked{% endif %}>
-                            Include Raman effect
+
+
+                    <fieldset>
+                        <legend>Input pulse</legend>
+
+                        <label>
+                            Pulse shape
+                            <select name="pulse_shape">
+                                <option value="sech2" {% if params.pulse_shape|lower=="sech2" %}selected{% endif %}>
+                                    sech²
+                                </option>
+                                <option value="gaussian" {% if params.pulse_shape|lower=="gaussian" %}selected{% endif
+                                    %}>Gaussian
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            λ₀ [nm]
+                            <input type="text" name="lambda_0" value="{{ params.lambda_0 }}">
                         </label>
 
                         <label>
-                            Raman fraction f<sub>R</sub>
-                            <input type="text" name="f_R" id="raman-factor" value="{{ params.f_R }}">
+                            Spectral FWHM [nm]
+                            <input type="text" name="fwhm_nm" value="{{ params.fwhm_nm }}">
+                            <div style="font-size: 0.85em; color: #555; margin-top: 4px;">
+                                TL Pulse Duration (FWHM): <span id="tl-duration-display"
+                                    style="font-weight: 600; color: #4b6fff;">--</span> fs
+                            </div>
                         </label>
+
+                        <label>
+                            GDD [ps²]
+                            <input type="text" name="gdd" value="{{ params.gdd }}">
+                        </label>
+
+                        <label>
+                            TOD [ps³]
+                            <input type="text" name="tod" value="{{ params.tod }}">
+                        </label>
+
+                        <label>
+                            FOD [ps⁴]
+                            <input type="text" name="fod" value="{{ params.fod }}">
+                        </label>
+
+                        <label>
+                            Pulse energy E [J]
+                            <input type="text" name="E" value="{{ params.E }}">
+                        </label>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Fiber parameters</legend>
+                        <label>
+                            β₂ [ps²/m]
+                            <input type="text" name="beta2" value="{{ params.beta2 }}">
+                        </label>
+
+                        <label>
+                            β₃ [ps³/m]
+                            <input type="text" name="beta3" value="{{ params.beta3 }}">
+                        </label>
+
+                        <label>
+                            β₄ [ps⁴/m]
+                            <input type="text" name="beta4" value="{{ params.beta4 }}">
+                        </label>
+
+                        <label>
+                            α [dB/km] (absorption)
+                            <input type="text" name="alpha_db_per_km" value="{{ params.alpha_db_per_km }}">
+                        </label>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Effects</legend>
 
                         <label class="checkbox">
-                            <input type="checkbox" name="use_self_steepening" id="steep-checkbox"
-                                   {% if params.use_self_steepening %}checked{% endif %}>
-                            Include self-steepening
+                            <input type="checkbox" name="use_nonlinear" id="nonlinear-checkbox" {% if
+                                params.use_nonlinear %}checked{% endif %}>
+                            Include nonlinearities
                         </label>
+
+                        <div id="nonlinear-group"
+                            style="margin-left: 1.2rem; border-left: 2px solid #eee; padding-left: 0.8rem;">
+                            <label>
+                                MFD [μm]
+                                <input type="text" name="mfd" id="mfd-input" value="{{ params.get('mfd', 8.0) }}">
+                            </label>
+
+                            <label>
+                                n₂ [m²/W]
+                                <input type="text" name="n2" id="n2-input" value="{{ params.get('n2', 2.6e-20) }}">
+                            </label>
+
+                            <div style="margin-bottom: 10px; font-size: 0.9em; color: #333;">
+                                <strong>Calculated γ:</strong> <span id="gamma-display">0.000</span> [1/(W·m)]
+                                <div style="font-size: 0.85em; color: #666; margin-top: 2px;">
+                                    \(\gamma = \frac{2\pi n_2}{\lambda A_{\text{eff}}}\)
+                                </div>
+                            </div>
+
+                            <label class="checkbox">
+                                <input type="checkbox" name="use_raman" id="raman-checkbox" {% if params.use_raman
+                                    %}checked{% endif %}>
+                                Include Raman effect
+                            </label>
+
+                            <label>
+                                Raman fraction f<sub>R</sub>
+                                <input type="text" name="f_R" id="raman-factor" value="{{ params.f_R }}">
+                            </label>
+
+                            <label class="checkbox">
+                                <input type="checkbox" name="use_self_steepening" id="steep-checkbox" {% if
+                                    params.use_self_steepening %}checked{% endif %}>
+                                Include self-steepening
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Propagation</legend>
+                        <label>
+                            Fiber length L [m]
+                            <input type="text" name="L" value="{{ params.L }}">
+                        </label>
+
+                        <label>
+                            Total number of steps
+                            <input type="number" name="n_steps" min="1" {% if not is_development %}max="1000" {% endif
+                                %} value="{{ params.n_steps }}">
+                        </label>
+
+                        <label>
+                            Number of steps for Heatmaps
+                            <input type="number" name="n_heatmap_steps" min="1" {% if not is_development %}max="100" {%
+                                endif %} value="{{ params.n_heatmap_steps }}">
+                        </label>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Plot Settings (Zoom)</legend>
+
+                        <label class="checkbox">
+                            <input type="checkbox" name="auto_time_range" id="auto-time-check" {% if
+                                params.auto_time_range %}checked{% endif %}>
+                            Time axis automatic range
+                        </label>
+
+                        <div id="time-range-inputs"
+                            style="display: flex; gap: 1rem; margin-left: 0.5rem; margin-bottom: 0.75rem;">
+                            <label style="flex: 1;">
+                                Min [ps]
+                                <input type="text" name="time_min" value="{{ params.time_min }}">
+                            </label>
+                            <label style="flex: 1;">
+                                Max [ps]
+                                <input type="text" name="time_max" value="{{ params.time_max }}">
+                            </label>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid #eee; margin: 0.5rem 0;">
+
+                        <label class="checkbox">
+                            <input type="checkbox" name="auto_lambda_range" id="auto-lambda-check" {% if
+                                params.auto_lambda_range %}checked{% endif %}>
+                            Wavelength axis automatic range
+                        </label>
+
+                        <div id="lambda-range-inputs" style="display: flex; gap: 1rem; margin-left: 0.5rem;">
+                            <label style="flex: 1;">
+                                Min [nm]
+                                <input type="text" name="lambda_min" value="{{ params.lambda_min }}">
+                            </label>
+                            <label style="flex: 1;">
+                                Max [nm]
+                                <input type="text" name="lambda_max" value="{{ params.lambda_max }}">
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <div class="actions">
+                        <button type="submit" id="submit-btn">Run simulation</button>
                     </div>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Propagation</legend>
-                    <label>
-                        Fiber length L [m]
-                        <input type="text" name="L" value="{{ params.L }}">
-                    </label>
-
-                    <label>
-                        Total number of steps
-                        <input type="number" name="n_steps" min="1" 
-                               {% if not is_development %}max="1000"{% endif %}
-                               value="{{ params.n_steps }}">
-                    </label>
-
-                    <label>
-                        Number of steps for Heatmaps
-                        <input type="number" name="n_heatmap_steps" min="1" 
-                               {% if not is_development %}max="100"{% endif %}
-                               value="{{ params.n_heatmap_steps }}">
-                    </label>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Plot Settings (Zoom)</legend>
-                    
-                    <label class="checkbox">
-                        <input type="checkbox" name="auto_time_range" id="auto-time-check"
-                               {% if params.auto_time_range %}checked{% endif %}>
-                        Time axis automatic range
-                    </label>
-                    
-                    <div id="time-range-inputs" style="display: flex; gap: 1rem; margin-left: 0.5rem; margin-bottom: 0.75rem;">
-                        <label style="flex: 1;">
-                            Min [ps]
-                            <input type="text" name="time_min" value="{{ params.time_min }}">
-                        </label>
-                        <label style="flex: 1;">
-                            Max [ps]
-                            <input type="text" name="time_max" value="{{ params.time_max }}">
-                        </label>
-                    </div>
-
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 0.5rem 0;">
-
-                    <label class="checkbox">
-                        <input type="checkbox" name="auto_lambda_range" id="auto-lambda-check"
-                               {% if params.auto_lambda_range %}checked{% endif %}>
-                        Wavelength axis automatic range
-                    </label>
-                    
-                    <div id="lambda-range-inputs" style="display: flex; gap: 1rem; margin-left: 0.5rem;">
-                        <label style="flex: 1;">
-                            Min [nm]
-                            <input type="text" name="lambda_min" value="{{ params.lambda_min }}">
-                        </label>
-                        <label style="flex: 1;">
-                            Max [nm]
-                            <input type="text" name="lambda_max" value="{{ params.lambda_max }}">
-                        </label>
-                    </div>
-                </fieldset>
-
-                <div class="actions">
-                    <button type="submit" id="submit-btn">Run simulation</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="right-panel">
-            <h2>Results</h2>
-            
-            <div id="loading-indicator" class="loading-box" style="display: none;">
-                <div class="spinner"></div>
-                <span>Calculating, please wait...</span>
+                </form>
             </div>
 
-            <div id="plots-wrapper" class="plots">
-                <p class="no-results">
-                    No results yet. Adjust the simulation setup on the left and click
-                    <strong>Run simulation</strong>.
-                </p>
+            <div class="right-panel">
+                <h2>Results</h2>
+
+                <div id="loading-indicator" class="loading-box" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Calculating, please wait...</span>
+                </div>
+
+                <div id="plots-wrapper" class="plots">
+                    <p class="no-results">
+                        No results yet. Adjust the simulation setup on the left and click
+                        <strong>Run simulation</strong>.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('sim-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const errorBox = document.getElementById('error-box');
-        const infoBox = document.getElementById('info-box');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const plotsWrapper = document.getElementById('plots-wrapper');
-        
-        const nlCheckbox = document.getElementById('nonlinear-checkbox');
-        const gammaInput = document.getElementById('gamma-input');
-        const ramanCheckbox = document.getElementById('raman-checkbox');
-        const ramanInput = document.getElementById('raman-factor');
-        const steepCheckbox = document.getElementById('steep-checkbox');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('sim-form');
+            const submitBtn = document.getElementById('submit-btn');
+            const errorBox = document.getElementById('error-box');
+            const infoBox = document.getElementById('info-box');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const plotsWrapper = document.getElementById('plots-wrapper');
 
-        function updateEffectsState() {
-            const isNl = nlCheckbox.checked;
-            setDisabled(gammaInput, !isNl);
-            setDisabled(ramanCheckbox, !isNl);
-            setDisabled(steepCheckbox, !isNl);
-            const isRamanActive = isNl && ramanCheckbox.checked;
-            setDisabled(ramanInput, !isRamanActive);
-        }
+            const nlCheckbox = document.getElementById('nonlinear-checkbox');
+            const mfdInput = document.getElementById('mfd-input');
+            const n2Input = document.getElementById('n2-input');
+            const gammaDisplay = document.getElementById('gamma-display');
+            const lambdaInput = document.querySelector('input[name="lambda_0"]');
 
-        const autoTimeCheck = document.getElementById('auto-time-check');
-        const timeInputs = document.getElementById('time-range-inputs');
-        const autoLambdaCheck = document.getElementById('auto-lambda-check');
-        const lambdaInputs = document.getElementById('lambda-range-inputs');
+            // Pulse Width Vars
+            const fwhmInput = document.querySelector('input[name="fwhm_nm"]');
+            const pulseShapeSelect = document.querySelector('select[name="pulse_shape"]');
+            const tlDurationDisplay = document.getElementById('tl-duration-display');
 
-        function updateRangeState() {
-            timeInputs.style.display = autoTimeCheck.checked ? 'none' : 'flex';
-            lambdaInputs.style.display = autoLambdaCheck.checked ? 'none' : 'flex';
-        }
+            const ramanCheckbox = document.getElementById('raman-checkbox');
+            const ramanInput = document.getElementById('raman-factor');
+            const steepCheckbox = document.getElementById('steep-checkbox');
 
-        function setDisabled(el, disabled) {
-            el.disabled = disabled;
-            if (disabled) {
-                el.style.opacity = '0.6';
-                if (el.tagName === 'INPUT' && el.type === 'text') el.style.backgroundColor = '#f0f0f0';
-            } else {
-                el.style.opacity = '1';
-                if (el.tagName === 'INPUT' && el.type === 'text') el.style.backgroundColor = '#fff';
-            }
-        }
-        
-        nlCheckbox.addEventListener('change', updateEffectsState);
-        ramanCheckbox.addEventListener('change', updateEffectsState);
-        autoTimeCheck.addEventListener('change', updateRangeState);
-        autoLambdaCheck.addEventListener('change', updateRangeState);
-        
-        updateEffectsState();
-        updateRangeState();
+            const nExpInput = document.getElementById('n-exp-input');
+            const nValueDisplay = document.getElementById('n-value-display');
 
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            errorBox.style.display = 'none';
-            errorBox.textContent = '';
-            loadingIndicator.style.display = 'flex';
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Running...';
-            
-            const formData = new FormData(form);
+            function calculateGamma() {
+                const mfd = parseFloat(mfdInput.value);
+                const n2 = parseFloat(n2Input.value);
+                const lambda_nm = parseFloat(lambdaInput.value);
 
-            fetch('simulate', { 
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                loadingIndicator.style.display = 'none';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Run simulation';
+                if (!isNaN(mfd) && !isNaN(n2) && !isNaN(lambda_nm) && mfd > 0 && lambda_nm > 0) {
+                    // MFD in um -> w_mode in m
+                    // A_eff = pi * (w_mode)^2 = pi * ( (mfd * 1e-6) / 2 )^2
+                    const mfd_m = mfd * 1e-6;
+                    const a_eff = Math.PI * Math.pow(mfd_m / 2.0, 2);
+                    const lambda_m = lambda_nm * 1e-9;
 
-                if (data.success) {
-                    infoBox.textContent = data.info_text;
-                    infoBox.style.display = 'block';
-                    renderPlots(data.plots);
+                    if (a_eff > 0) {
+                        const gamma = (2 * Math.PI * n2) / (lambda_m * a_eff);
+                        gammaDisplay.textContent = gamma.toExponential(3);
+                    } else {
+                        gammaDisplay.textContent = "Error";
+                    }
                 } else {
-                    errorBox.textContent = data.error;
-                    errorBox.style.display = 'block';
-                    errorBox.scrollIntoView({ behavior: 'smooth' });
+                    gammaDisplay.textContent = "--";
                 }
-            })
-            .catch(err => {
-                loadingIndicator.style.display = 'none';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Run simulation';
-                errorBox.textContent = "Network or Server Error: " + err;
-                errorBox.style.display = 'block';
-            });
-        });
-
-        function renderPlots(plotsData) {
-            plotsWrapper.innerHTML = ''; 
-            const order = ['time_domain', 'spectral_domain', 'temporal_evolution', 'spectral_evolution'];
-            
-            order.forEach(key => {
-                if (!plotsData[key]) return;
-                const data = plotsData[key];
-                const card = document.createElement('div');
-                card.className = 'plot-card';
-                const container = document.createElement('div');
-                container.className = 'plot-container';
-                
-                container.dataset.bounds = JSON.stringify(data.bounds);
-                container.dataset.xlim = JSON.stringify(data.xlim);
-                container.dataset.ylim = JSON.stringify(data.ylim);
-                container.dataset.labels = JSON.stringify(data.labels);
-                if (data.dual_axis_type) container.dataset.dualAxis = data.dual_axis_type;
-                if (data.z_grid) container.dataset.zgrid = JSON.stringify(data.z_grid);
-
-                const img = document.createElement('img');
-                img.src = `data:image/png;base64,${data.img}`;
-                img.alt = key;
-                const tooltip = document.createElement('div');
-                tooltip.className = 'coord-tooltip';
-
-                container.appendChild(img);
-                container.appendChild(tooltip);
-                card.appendChild(container);
-                plotsWrapper.appendChild(card);
-
-                attachTooltipHandlers(container, img, tooltip);
-            });
-        }
-
-        function attachTooltipHandlers(container, img, tooltip) {
-            const bounds = JSON.parse(container.dataset.bounds); 
-            const xlim = JSON.parse(container.dataset.xlim);
-            const ylim = JSON.parse(container.dataset.ylim);
-            const labels = JSON.parse(container.dataset.labels);
-            const dualAxisType = container.dataset.dualAxis;
-            const zGrid = container.dataset.zgrid ? JSON.parse(container.dataset.zgrid) : null;
-
-            function formatNum(n) {
-                const absN = Math.abs(n);
-                if (absN === 0) return "0";
-                if (absN < 0.01 || absN > 10000) return n.toExponential(3);
-                return n.toFixed(3);
             }
 
-            container.addEventListener('mousemove', function(e) {
-                const rect = img.getBoundingClientRect();
-                const xPx = e.clientX - rect.left;
-                const yPx = e.clientY - rect.top;
-                const xRel = xPx / rect.width;
-                const yRel = 1.0 - (yPx / rect.height); 
+            function calculateTLPulse() {
+                const fwhm_nm = parseFloat(fwhmInput.value);
+                const lambda_nm = parseFloat(lambdaInput.value);
+                const shape = pulseShapeSelect.value;
 
-                const xIn = xRel >= bounds.left && xRel <= (bounds.left + bounds.width);
-                const yIn = yRel >= bounds.bottom && yRel <= (bounds.bottom + bounds.height);
+                if (!isNaN(fwhm_nm) && !isNaN(lambda_nm) && fwhm_nm > 0 && lambda_nm > 0) {
+                    // c = 299792458
+                    // d_nu = (c / lambda^2) * d_lambda
+                    const c = 299792458.0;
+                    const lambda_m = lambda_nm * 1e-9;
+                    const d_lambda_m = fwhm_nm * 1e-9;
+                    const d_nu = (c / (lambda_m * lambda_m)) * d_lambda_m;
 
-                if (xIn && yIn) {
-                    const xRatio = (xRel - bounds.left) / bounds.width;
-                    const yRatio = (yRel - bounds.bottom) / bounds.height;
-                    const xVal = xlim[0] + xRatio * (xlim[1] - xlim[0]);
-                    const yVal = ylim[0] + yRatio * (ylim[1] - ylim[0]);
+                    let tbp = 0.315; // sech2
+                    if (shape === 'gaussian') tbp = 0.441;
 
-                    let content = `<strong>${labels.x}:</strong> ${formatNum(xVal)}<br>` +
-                                  `<strong>${labels.y}:</strong> ${formatNum(yVal)}`;
-
-                    if (dualAxisType === 'spectrum') {
-                        const freqTHz = 299792.458 / xVal;
-                        content += `<br><strong>Frequency:</strong> ${formatNum(freqTHz)} THz`;
+                    if (d_nu > 1e-20) {
+                        const fwhm_s = tbp / d_nu;
+                        const fwhm_fs = fwhm_s * 1e15;
+                        tlDurationDisplay.textContent = fwhm_fs.toFixed(3);
+                    } else {
+                        tlDurationDisplay.textContent = "Inf";
                     }
-                    if (zGrid) {
-                        const rows = zGrid.length;
-                        const cols = zGrid[0].length;
-                        let r = Math.floor(yRatio * rows);
-                        let c = Math.floor(xRatio * cols);
-                        if (r < 0) r = 0; if (r >= rows) r = rows - 1;
-                        if (c < 0) c = 0; if (c >= cols) c = cols - 1;
-                        const zVal = zGrid[r][c];
-                        const zLabel = labels.z || "Intensity";
-                        content += `<br><strong>${zLabel}:</strong> ${zVal.toFixed(2)}`;
-                    }
-                    tooltip.style.display = 'block';
-                    tooltip.innerHTML = content;
-                    
-                    if (xPx > rect.width * 0.7) tooltip.style.left = (xPx - 160) + 'px';
-                    else tooltip.style.left = (xPx + 15) + 'px';
-                    tooltip.style.top = (yPx + 15) + 'px';
                 } else {
+                    tlDurationDisplay.textContent = "--";
+                }
+            }
+
+            function updateEffectsState() {
+                const isNl = nlCheckbox.checked;
+                setDisabled(mfdInput, !isNl);
+                setDisabled(n2Input, !isNl);
+                setDisabled(ramanCheckbox, !isNl);
+                setDisabled(steepCheckbox, !isNl);
+                const isRamanActive = isNl && ramanCheckbox.checked;
+                setDisabled(ramanInput, !isRamanActive);
+
+                if (isNl) calculateGamma();
+                else gammaDisplay.textContent = "Ignored";
+            }
+
+            mfdInput.addEventListener('input', calculateGamma);
+            n2Input.addEventListener('input', calculateGamma);
+            lambdaInput.addEventListener('input', () => {
+                calculateGamma();
+                calculateTLPulse();
+            });
+            fwhmInput.addEventListener('input', calculateTLPulse);
+            pulseShapeSelect.addEventListener('change', calculateTLPulse);
+
+            // Initial calc
+            calculateTLPulse();
+            updateNDisplay();
+
+            const autoTimeCheck = document.getElementById('auto-time-check');
+            const timeInputs = document.getElementById('time-range-inputs');
+            const autoLambdaCheck = document.getElementById('auto-lambda-check');
+            const lambdaInputs = document.getElementById('lambda-range-inputs');
+
+            function updateRangeState() {
+                timeInputs.style.display = autoTimeCheck.checked ? 'none' : 'flex';
+                lambdaInputs.style.display = autoLambdaCheck.checked ? 'none' : 'flex';
+            }
+
+            function setDisabled(el, disabled) {
+                el.disabled = disabled;
+                if (disabled) {
+                    el.style.opacity = '0.6';
+                    if (el.tagName === 'INPUT' && el.type === 'text') el.style.backgroundColor = '#f0f0f0';
+                } else {
+                    el.style.opacity = '1';
+                    if (el.tagName === 'INPUT' && el.type === 'text') el.style.backgroundColor = '#fff';
+                }
+            }
+
+            nlCheckbox.addEventListener('change', updateEffectsState);
+            ramanCheckbox.addEventListener('change', updateEffectsState);
+            autoTimeCheck.addEventListener('change', updateRangeState);
+            autoLambdaCheck.addEventListener('change', updateRangeState);
+            nExpInput.addEventListener('input', updateNDisplay);
+
+            function updateNDisplay() {
+                const exp = parseInt(nExpInput.value);
+                if (!isNaN(exp)) {
+                    const val = Math.pow(2, exp);
+                    nValueDisplay.innerHTML = `Current N = 2<sup>${exp}</sup> = ${val}`;
+                } else {
+                    nValueDisplay.textContent = "Current N = --";
+                }
+            }
+
+            updateEffectsState();
+            updateRangeState();
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                errorBox.style.display = 'none';
+                errorBox.textContent = '';
+                loadingIndicator.style.display = 'flex';
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Running...';
+
+                const formData = new FormData(form);
+
+                fetch('simulate', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        loadingIndicator.style.display = 'none';
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Run simulation';
+
+                        if (data.success) {
+                            infoBox.textContent = data.info_text;
+                            infoBox.style.display = 'block';
+                            renderPlots(data.plots);
+                        } else {
+                            errorBox.textContent = data.error;
+                            errorBox.style.display = 'block';
+                            errorBox.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    })
+                    .catch(err => {
+                        loadingIndicator.style.display = 'none';
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Run simulation';
+                        errorBox.textContent = "Network or Server Error: " + err;
+                        errorBox.style.display = 'block';
+                    });
+            });
+
+            function renderPlots(plotsData) {
+                plotsWrapper.innerHTML = '';
+                const order = ['time_domain', 'spectral_domain', 'temporal_evolution', 'spectral_evolution'];
+
+                order.forEach(key => {
+                    if (!plotsData[key]) return;
+                    const data = plotsData[key];
+                    const card = document.createElement('div');
+                    card.className = 'plot-card';
+                    const container = document.createElement('div');
+                    container.className = 'plot-container';
+
+                    container.dataset.bounds = JSON.stringify(data.bounds);
+                    container.dataset.xlim = JSON.stringify(data.xlim);
+                    container.dataset.ylim = JSON.stringify(data.ylim);
+                    container.dataset.labels = JSON.stringify(data.labels);
+                    if (data.dual_axis_type) container.dataset.dualAxis = data.dual_axis_type;
+                    if (data.z_grid) container.dataset.zgrid = JSON.stringify(data.z_grid);
+
+                    const img = document.createElement('img');
+                    img.src = `data:image/png;base64,${data.img}`;
+                    img.alt = key;
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'coord-tooltip';
+
+                    container.appendChild(img);
+                    container.appendChild(tooltip);
+                    card.appendChild(container);
+                    plotsWrapper.appendChild(card);
+
+                    attachTooltipHandlers(container, img, tooltip);
+                });
+            }
+
+            function attachTooltipHandlers(container, img, tooltip) {
+                const bounds = JSON.parse(container.dataset.bounds);
+                const xlim = JSON.parse(container.dataset.xlim);
+                const ylim = JSON.parse(container.dataset.ylim);
+                const labels = JSON.parse(container.dataset.labels);
+                const dualAxisType = container.dataset.dualAxis;
+                const zGrid = container.dataset.zgrid ? JSON.parse(container.dataset.zgrid) : null;
+
+                function formatNum(n) {
+                    const absN = Math.abs(n);
+                    if (absN === 0) return "0";
+                    if (absN < 0.01 || absN > 10000) return n.toExponential(3);
+                    return n.toFixed(3);
+                }
+
+                container.addEventListener('mousemove', function (e) {
+                    const rect = img.getBoundingClientRect();
+                    const xPx = e.clientX - rect.left;
+                    const yPx = e.clientY - rect.top;
+                    const xRel = xPx / rect.width;
+                    const yRel = 1.0 - (yPx / rect.height);
+
+                    const xIn = xRel >= bounds.left && xRel <= (bounds.left + bounds.width);
+                    const yIn = yRel >= bounds.bottom && yRel <= (bounds.bottom + bounds.height);
+
+                    if (xIn && yIn) {
+                        const xRatio = (xRel - bounds.left) / bounds.width;
+                        const yRatio = (yRel - bounds.bottom) / bounds.height;
+                        const xVal = xlim[0] + xRatio * (xlim[1] - xlim[0]);
+                        const yVal = ylim[0] + yRatio * (ylim[1] - ylim[0]);
+
+                        let content = `<strong>${labels.x}:</strong> ${formatNum(xVal)}<br>` +
+                            `<strong>${labels.y}:</strong> ${formatNum(yVal)}`;
+
+                        if (dualAxisType === 'spectrum') {
+                            const freqTHz = 299792.458 / xVal;
+                            content += `<br><strong>Frequency:</strong> ${formatNum(freqTHz)} THz`;
+                        }
+                        if (zGrid) {
+                            const rows = zGrid.length;
+                            const cols = zGrid[0].length;
+                            let r = Math.floor(yRatio * rows);
+                            let c = Math.floor(xRatio * cols);
+                            if (r < 0) r = 0; if (r >= rows) r = rows - 1;
+                            if (c < 0) c = 0; if (c >= cols) c = cols - 1;
+                            const zVal = zGrid[r][c];
+                            const zLabel = labels.z || "Intensity";
+                            content += `<br><strong>${zLabel}:</strong> ${zVal.toFixed(2)}`;
+                        }
+                        tooltip.style.display = 'block';
+                        tooltip.innerHTML = content;
+
+                        if (xPx > rect.width * 0.7) tooltip.style.left = (xPx - 160) + 'px';
+                        else tooltip.style.left = (xPx + 15) + 'px';
+                        tooltip.style.top = (yPx + 15) + 'px';
+                    } else {
+                        tooltip.style.display = 'none';
+                    }
+                });
+                container.addEventListener('mouseleave', function () {
                     tooltip.style.display = 'none';
-                }
-            });
-            container.addEventListener('mouseleave', function() {
-                tooltip.style.display = 'none';
-            });
-        }
-    });
-</script>
+                });
+            }
+        });
+    </script>
 
-<div id="footer-placeholder"></div>
+    <div id="footer-placeholder"></div>
 
     <!-- Script to include Header/Footer -->
     <script src="/layout.js" defer></script>
 </body>
+
 </html>

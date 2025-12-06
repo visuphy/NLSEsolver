@@ -17,10 +17,13 @@ PROD_MAX_HEATMAP = 100
 
 DEFAULT_PARAMS = {
     "N": 2**16,
-    "time_window": 4.0,
+    "time_window": 50.0,
     "lambda_0": 430.0,
     "pulse_shape": "sech2",
-    "FWHM": 35.26,
+    "fwhm_nm": 5.0,
+    "gdd": 0.0,
+    "tod": 0.0,
+    "fod": 0.0,
     "E": 100e-12,
     "beta2": 0.0,
     "beta3": 0.0,
@@ -40,6 +43,8 @@ DEFAULT_PARAMS = {
     "auto_lambda_range": True,
     "lambda_min": 400.0,
     "lambda_max": 460.0,
+    "mfd": 8.0, 
+    "n2": 2.6e-20,
 }
 
 # --------- Helpers ----------
@@ -194,8 +199,38 @@ def run_simulation(params):
 
     lambda_nm = float(params.get("lambda_0", DEFAULT_PARAMS["lambda_0"]))
     lambda_0 = lambda_nm * 1e-9
-    fwhm_fs = float(params.get("FWHM", DEFAULT_PARAMS["FWHM"]))
-    FWHM = fwhm_fs * 1e-15
+
+    pulse_shape = str(params.get("pulse_shape", DEFAULT_PARAMS["pulse_shape"])).lower()
+
+    # --- Pulse Width Calculation ---
+    fwhm_nm = float(params.get("fwhm_nm", DEFAULT_PARAMS["fwhm_nm"]))
+    
+    c = 299792458.0
+    d_lambda_m = fwhm_nm * 1e-9
+    d_nu_Hz = (c / (lambda_0**2)) * d_lambda_m
+    
+    if pulse_shape == "gaussian":
+        tbp = 0.441
+    else:
+        tbp = 0.315
+        
+    if d_nu_Hz <= 1e-20:
+         fwhm_fs = 1e3
+    else:
+        fwhm_s = tbp / d_nu_Hz
+        fwhm_fs = fwhm_s * 1e15
+
+    FWHM = fwhm_fs * 1e-15 # seconds
+    
+    # Dispersion parameters for input pulse
+    gdd_val = float(params.get("gdd", 0.0)) # ps^2
+    tod_val = float(params.get("tod", 0.0)) # ps^3
+    fod_val = float(params.get("fod", 0.0)) # ps^4
+    
+    gdd = gdd_val * (1e-12)**2
+    tod = tod_val * (1e-12)**3
+    fod = fod_val * (1e-12)**4
+
     beta2_ps = float(params.get("beta2", DEFAULT_PARAMS["beta2"]))
     beta3_ps = float(params.get("beta3", DEFAULT_PARAMS["beta3"]))
     beta4_ps = float(params.get("beta4", DEFAULT_PARAMS["beta4"]))
@@ -207,8 +242,9 @@ def run_simulation(params):
     T = (np.arange(N) - N // 2) * dt
     f0 = c0 / lambda_0
     w0 = 2 * np.pi * f0
+    
+    omega = 2 * np.pi * np.fft.fftfreq(N, d=dt)
 
-    pulse_shape = str(params.get("pulse_shape", DEFAULT_PARAMS["pulse_shape"])).lower()
     E = float(params.get("E", DEFAULT_PARAMS["E"]))
 
     if pulse_shape == "gaussian":
@@ -221,9 +257,45 @@ def run_simulation(params):
         def amplitude_from_P0(t, P0): return np.sqrt(P0) / np.cosh(t / T0)
 
     P0 = E / energy_factor
-    A0 = amplitude_from_P0(T, P0)
+    A0_tl = amplitude_from_P0(T, P0)
+    
+    # Apply Input Dispersion
+    if abs(gdd) > 1e-40 or abs(tod) > 1e-40 or abs(fod) > 1e-40:
+        A0_w = np.fft.fft(A0_tl)
+        # Phase expansion: phi(w) = 0.5*gdd*w^2 + 1/6*tod*w^3...
+        # Note: omega from fftfreq is typically centered at 0 if we consider FFT domain, 
+        # but fftfreq returns [0, 1, ..., -1] which corresponds to difference from center freq 0.
+        input_phase = (0.5 * gdd * (omega**2) + 
+                       (1.0/6.0) * tod * (omega**3) + 
+                       (1.0/24.0) * fod * (omega**4))
+        A0_w *= np.exp(-1j * input_phase)
+        A0 = np.fft.ifft(A0_w)
+    else:
+        A0 = A0_tl
+    
+    # Calculate actual peak power and timing
+    I0 = np.abs(A0)**2
+    P_actual = np.max(I0)
+    
+    # Calculate actual FWHM -> T0_actual
+    T_ps = T * 1e12
+    fwhm_in_s = fwhm(T, I0)
+    
+    if pulse_shape == "gaussian":
+        T0_actual = fwhm_in_s / (2 * np.sqrt(np.log(2)))
+    else:
+        T0_actual = fwhm_in_s / (2 * np.arccosh(np.sqrt(2.0)))
 
-    gamma = float(params.get("gamma", DEFAULT_PARAMS["gamma"]))
+    alpha_db_per_km = float(params.get("alpha_db_per_km", DEFAULT_PARAMS["alpha_db_per_km"]))
+    
+    # Calculate Gamma from MFD and n2
+    mfd_um = float(params.get("mfd", DEFAULT_PARAMS["mfd"]))
+    n2 = float(params.get("n2", DEFAULT_PARAMS["n2"]))
+    
+    # A_eff = pi * (w_mode)^2 where w_mode = MFD/2
+    mfd_m = mfd_um * 1e-6
+    a_eff = np.pi * ((mfd_m / 2.0)**2)
+    gamma = (2 * np.pi * n2) / (lambda_0 * a_eff)
     alpha_db_per_km = float(params.get("alpha_db_per_km", DEFAULT_PARAMS["alpha_db_per_km"]))
     alpha = (alpha_db_per_km / 4.343) / 1000.0
 
@@ -253,22 +325,48 @@ def run_simulation(params):
     )
 
     # --- CHARACTERISTIC LENGTHS ---
-    if abs(beta2) > 1e-40: L_D = (T0**2) / abs(beta2)
+    # --- CHARACTERISTIC LENGTHS ---
+    # Using actual T0 and P0 from the launched pulse (which may be chirped/broadened)
+    if abs(beta2) > 1e-40 and T0_actual > 0: L_D = (T0_actual**2) / abs(beta2)
     else: L_D = float('inf')
-    if gamma > 1e-40 and P0 > 1e-40: L_NL = 1.0 / (gamma * P0)
+    
+    if gamma > 1e-40 and P_actual > 1e-40: L_NL = 1.0 / (gamma * P_actual)
     else: L_NL = float('inf')
+    
     if L_NL > 0 and L_NL != float('inf') and L_D != float('inf'): N_sol = np.sqrt(L_D / L_NL)
     else: N_sol = 0.0
 
     plots = {}
-    T_ps = T * 1e12
-    if params.get("auto_time_range", True): t_lim = (T_ps[0], T_ps[-1])
-    else: t_lim = (params.get("time_min"), params.get("time_max"))
-
+    # T_ps already calculated above (line 277 approx)
     # 1. Time Domain
-    I0 = np.abs(A0)**2
+    # I0 already calculated above
     Iout = np.abs(A_out)**2
-    fwhm_in_s = fwhm(T, I0)
+
+    if params.get("auto_time_range", True): 
+        # Smart auto-ranging: find where intensity > -40dB (1e-4) of peak
+        I_comb = np.maximum(I0, Iout)
+        peak_I = np.max(I_comb)
+        if peak_I > 1e-40:
+            threshold = 1e-4 * peak_I
+            mask = I_comb >= threshold
+            if np.any(mask):
+                idx = np.where(mask)[0]
+                t_start = T_ps[max(0, idx[0])]
+                t_end = T_ps[min(len(T_ps)-1, idx[-1])]
+                span = t_end - t_start
+                # Add 50% padding on each side, but at least 0.5 ps
+                pad = max(0.5 * span, 0.5)
+                
+                t_lim_min = max(T_ps[0], t_start - pad)
+                t_lim_max = min(T_ps[-1], t_end + pad)
+                t_lim = (t_lim_min, t_lim_max)
+            else:
+                t_lim = (T_ps[0], T_ps[-1])
+        else:
+            t_lim = (T_ps[0], T_ps[-1])
+    else: 
+        t_lim = (params.get("time_min"), params.get("time_max"))
+    # fwhm_in_s already calculated above
     fwhm_out_s = fwhm(T, Iout)
     fig, ax = plt.subplots(figsize=(7, 4.5))
     ax.plot(T_ps, I0, label=f"Input (FWHM={fmt_time_si(fwhm_in_s)})")
@@ -373,8 +471,8 @@ def run_simulation(params):
 
     N_exp = int(round(np.log2(N)))
     info_lines = [
-        f"Input: {lambda_nm:.1f} nm, {fwhm_fs:.1f} fs, E={E*1e12:.2f} pJ",
-        f"Peak Power P0: {P0:.2f} W",
+        f"Input: {lambda_nm:.1f} nm, {fwhm_fs:.1f} fs (TL), E={E*1e12:.2f} pJ",
+        f"Peak Power: {P_actual:.2f} W (TL: {P0:.2f} W)",
         f"Lengths: L_D={L_D:.3g} m, L_NL={L_NL:.3g} m, Soliton N={N_sol:.3f}",
         f"N: {N} (2^{N_exp}), Window: {time_window_ps:.1f} ps",
         f"Fiber L: {L:.3g} m, Steps: {n_steps}, dz: {dz:.3g} m",

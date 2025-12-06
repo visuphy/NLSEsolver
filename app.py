@@ -42,23 +42,27 @@ def get_form_params(form):
     params["time_window"] = get_float("time_window", DEFAULT_PARAMS["time_window"])
     params["lambda_0"] = get_float("lambda_0", DEFAULT_PARAMS["lambda_0"])
     params["pulse_shape"] = get_str("pulse_shape", DEFAULT_PARAMS["pulse_shape"])
-    params["FWHM"] = get_float("FWHM", DEFAULT_PARAMS["FWHM"])
+    params["fwhm_nm"] = get_float("fwhm_nm", DEFAULT_PARAMS["fwhm_nm"])
+    params["gdd"] = get_float("gdd", DEFAULT_PARAMS["gdd"])
+    params["tod"] = get_float("tod", DEFAULT_PARAMS["tod"])
+    params["fod"] = get_float("fod", DEFAULT_PARAMS["fod"])
     params["E"] = get_float("E", DEFAULT_PARAMS["E"])
     params["beta2"] = get_float("beta2", DEFAULT_PARAMS["beta2"])
     params["beta3"] = get_float("beta3", DEFAULT_PARAMS["beta3"])
     params["beta4"] = get_float("beta4", DEFAULT_PARAMS["beta4"])
     params["alpha_db_per_km"] = get_float("alpha_db_per_km", DEFAULT_PARAMS["alpha_db_per_km"])
 
+    params["mfd"] = get_float("mfd", DEFAULT_PARAMS["mfd"])
+    params["n2"] = get_float("n2", DEFAULT_PARAMS["n2"])
+
     params["use_nonlinear"] = bool(form.get("use_nonlinear"))
-    raw_gamma = get_float("gamma", DEFAULT_PARAMS["gamma"])
     params["use_raman"] = bool(form.get("use_raman"))
     params["f_R"] = get_float("f_R", DEFAULT_PARAMS["f_R"])
     params["use_self_steepening"] = bool(form.get("use_self_steepening"))
 
-    if params["use_nonlinear"]:
-        params["gamma"] = raw_gamma
-    else:
-        params["gamma"] = 0.0
+    if not params["use_nonlinear"]:
+        # Setting n2 to 0 ensures gamma (calculated in solver) will be 0
+        params["n2"] = 0.0
         params["use_raman"] = False
         params["use_self_steepening"] = False
 
